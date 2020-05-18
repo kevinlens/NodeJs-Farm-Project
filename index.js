@@ -49,7 +49,8 @@ const replaceTemplate = (temp, product) =>{
     output = output.replace(/{%DESCRIPTION%}/g, product.description);
     output = output.replace(/{%ID%}/g, product.id);
     if(!product.organic) output = output.replace(/{%NOT_ORGANIC%}/g, 'not-orgranic')
-    
+
+    return output;
 }
 
 
@@ -67,7 +68,7 @@ const dataObj = JSON.parse(data);
 
 
 
-/*create a server and and send a 'req(request)' to that 
+/*create a server when you load it on webpage and send a 'req(request)' to that 
 page directory to get back a 'res(response)' object
 to which you could manipulate to modify the page*/
 const server = http.createServer((req, res) =>{
@@ -79,9 +80,10 @@ const server = http.createServer((req, res) =>{
         //Allows html elements to be utilizied 
         res.writeHead(200, {'Content-type': 'text/html'})
         //loop through the parsed json text file
-        const cardsHtml = dataObj.map(item => replaceTemplate(tempCard, item))
+        const cardsHtml = dataObj.map(item => replaceTemplate(tempCard, item)).join('');
+        const output = tempOverview.replace('{%PRODUCT_CARDS%}', cardsHtml)
 
-        res.end(tempOverview);
+        res.end(output);
      
     //Product Page        
     } else if(pathName === '/product'){
