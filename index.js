@@ -1,6 +1,7 @@
 const fs = require('fs');
 const http = require('http');
 const url = require('url');
+const slugify = require('slugify');
 const replaceTemplate = require('./modules/replaceTemplate');
 
 //--------------------------------------------
@@ -11,11 +12,9 @@ const replaceTemplate = require('./modules/replaceTemplate');
 
 // const textIn = fs.readFileSync('./txt/input.txt', 'utf-8');
 // console.log(textIn);
-// const textOut = `This is what we know about the avocado: ${textIn}.\nCreated on ${Date.now()}`; 
+// const textOut = `This is what we know about the avocado: ${textIn}.\nCreated on ${Date.now()}`;
 // fs.writeFileSync('./txt/output.txt', textOut);
 // console.log('File written!');
-
-
 
 //Non-blocking, asynchronous way
 
@@ -26,7 +25,7 @@ const replaceTemplate = require('./modules/replaceTemplate');
 //        console.log(data2);
 //        fs.readFile(`./txt/append.txt`, 'utf-8', (err, data3) =>{
 //         console.log(data3)
-        
+
 //         fs.writeFile('./txt/final.txt', `${data2}\n${data3}`,'utf-8', err =>{
 //             console.log('Your file has been written 😁');
 //         })
@@ -34,16 +33,22 @@ const replaceTemplate = require('./modules/replaceTemplate');
 //     })
 // })
 
-
 //--------------------------------------------
 //Servers
 //------
 
-
-const tempOverview = fs.readFileSync(`${__dirname}/templates/template-overview.html`, 'utf-8');
-const tempCard = fs.readFileSync(`${__dirname}/templates/template-card.html`, 'utf-8');
-const tempProduct = fs.readFileSync(`${__dirname}/templates/template-product.html`, 'utf-8');
-
+const tempOverview = fs.readFileSync(
+  `${__dirname}/templates/template-overview.html`,
+  'utf-8'
+);
+const tempCard = fs.readFileSync(
+  `${__dirname}/templates/template-card.html`,
+  'utf-8'
+);
+const tempProduct = fs.readFileSync(
+  `${__dirname}/templates/template-product.html`,
+  'utf-8'
+);
 
 //this is just plain text response sent back after being read
 const data = fs.readFileSync(`${__dirname}/dev-data/data.json`, 'utf-8');
@@ -51,63 +56,57 @@ const data = fs.readFileSync(`${__dirname}/dev-data/data.json`, 'utf-8');
 // JSON file, is just text, written with JavaScript object notation
 const dataObj = JSON.parse(data);
 
+const slugs = dataObj.map((element) =>
+  slugify(element.productName, { lower: true })
+);
 
+console.log(slugs);
 
-
-
-
-/*create a server when you load it on webpage and send a 'req(request)' to that 
-page directory to get back a 'res(response)' object
+/*Whenever the user(browser) refreshes the page, it sends a req(request) with
+data to the server which would analyze that data and send back a 'res(response)' data object
 to which you could manipulate to modify the page*/
-const server = http.createServer((req, res) =>{
+const server = http.createServer((req, res) => {
+  //reading request's data sent to server and grab its url
+  const { query, pathname } = url.parse(req.url, true);
 
-    const {query, pathname} = url.parse(req.url, true);
+  //Overview Page
+  if (pathname === '/' || pathname === '/overview') {
+    //Allows html elements to be utilizied
+    res.writeHead(200, { 'Content-type': 'text/html' });
+    //loop through the parsed json text file
+    const cardsHtml = dataObj
+      .map((item) => replaceTemplate(tempCard, item))
+      .join('');
+    const output = tempOverview.replace('{%PRODUCT_CARDS%}', cardsHtml);
 
+    res.end(output);
 
-    //Overview Page
-    if(pathname === '/' || pathname === '/overview'){
+    //Product Page
+  } else if (pathname === '/product') {
+    res.writeHead(200, { 'Content-type': 'text/html' });
 
-        //Allows html elements to be utilizied 
-        res.writeHead(200, {'Content-type': 'text/html'})
-        //loop through the parsed json text file
-        const cardsHtml = dataObj.map(item => replaceTemplate(tempCard, item)).join('');
-        const output = tempOverview.replace('{%PRODUCT_CARDS%}', cardsHtml)
+    const product = dataObj[query.id];
+    const output = replaceTemplate(tempProduct, product);
 
-        res.end(output);
-     
-    //Product Page        
-    } else if(pathname === '/product'){
-        res.writeHead(200, {'Content-type': 'text/html'})
+    res.end(output);
 
-        const product = dataObj[query.id]
-        const output = replaceTemplate(tempProduct, product)
+    //API
+  } else if (pathname === '/api') {
+    //This turns the json text into an actual open api database page
+    res.writeHead(200, { 'Content-type': 'application/json' });
+    res.end(data);
 
-        res.end(output);
-       
-    //API        
-    } else if(pathname === '/api'){ 
-        //This turns the json text into an actual open api database page
-        res.writeHead(200, {'Content-type': 'application/json'})
-        res.end(data);
-
-    //Not found        
-    } else {
-        //Allows html elements to be utilizied 
-        res.writeHead(404, {
-            'Content-type': 'text/html',
-            'my-own-header': 'hello-world' 
-        });
-        res.end('<h1>Page not found</h1>');
-    }
-
-
+    //Not found
+  } else {
+    //Allows html elements to be utilizied
+    res.writeHead(404, {
+      'Content-type': 'text/html',
+      'my-own-header': 'hello-world',
+    });
+    res.end('<h1>Page not found</h1>');
+  }
 });
 
-
-server.listen(8000, '127.0.0.1', ()=>{
-    console.log('Listening to requests on port 8000');
-})
-
-
-
-
+server.listen(8000, '127.0.0.1', () => {
+  console.log('Listening to requests on port 8000');
+});
